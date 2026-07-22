@@ -28,14 +28,24 @@ function logon(req, res) {
             email: user.email
         });
     } else {
-        return res.status(401).send();
+        //This line was before assignment reviewer check
+        //return res.status(401).send();
+        //After recommendations from AI Assignment Reviewer:
+        return res.status(401).json({ 
+            error: "Invalid email or password" 
+        });
     }
 }
 
 function logoff(req,res) 
 {
 global.user_id=null;
-return res.sendStatus(200);
+//Before fixing with AI Assignment Reviewer
+//return res.sendStatus(200);
+//After fixing with AI Reviewer:
+return res.status(200).json({ 
+        message: "Logged off successfully" 
+    });
 
 };
 

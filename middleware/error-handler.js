@@ -1,7 +1,11 @@
 
 function errorHandler(err, req, res, next) {
   res.status(500).json({
-    message: "Something went wrong.",
+    //Before AI Reviewer check
+    //message: "Something went wrong.",
+    
+    //After correction:
+    error: "Internal Server Error",
   });
 }
 
