@@ -38,7 +38,8 @@ try {
     } catch (e) {
         if (e.code === "23505") {
             return res.status(400).json({
-                error: "This email is already registered."
+                //error: "This email is already registered."
+                message:"This email is already registered."
             });
         }
         return next(e); 

@@ -32,10 +32,18 @@ const server = app.listen(port, () => {
   console.log(`Server is listening on port ${port}...`);
 });
 
+//const shutdown = async () => {
+//  await pool.end();
+//};
+//AI Reviewer recommendations:
 const shutdown = async () => {
   await pool.end();
+  server.close(() => {
+    process.exit(0);
+  });
 };
 
 process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);//this line was added after AI Reviewer recommendations.
 module.exports = { app, server };
 
