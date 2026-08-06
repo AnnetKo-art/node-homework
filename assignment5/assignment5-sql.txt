@@ -1,0 +1,54 @@
+# Use this command to run  each querry in the Terminal node sqlcommand.js
+
+# TASK 1: Total price of the first 5 orders
+# You need the price from the products table and the quantity from the line_items table, 
+# so you will need to join those tables with the orders table.
+# You are grouping line_items by order_id, so use GROUP BY with the order_id. 
+# Also use ORDER BY with the order_id. Your result should return two columns: order_id and total_price.
+# Use aliasing so the sum of price times quantity is labeled total_price.
+
+SELECT o.order_id, SUM(p.price * l.quantity) AS total_price FROM orders AS o JOIN line_items AS l ON o.order_id = l.order_id JOIN products AS p ON l.product_id = p.product_id GROUP BY o.order_id ORDER BY o.order_id LIMIT 5;
+
+
+#TASK 2: Average total order price for each customer
+# Subquery: Calculate the total price per order (SUM of price * quantity).
+# Outer Query: Join the subquery to the customers table.
+# Return customer name and their average order price, sorted by name.
+
+SELECT c.customer_name, AVG(t.total_price) AS average_order_price FROM customers c JOIN ( SELECT o.order_id, o.customer_id, SUM(p.price * l.quantity) AS total_price FROM orders AS o JOIN line_items AS l ON o.order_id = l.order_id JOIN products AS p ON l.product_id = p.product_id GROUP BY o.order_id, o.customer_id ) AS t ON c.customer_id = t.customer_id GROUP BY c.customer_id, c.customer_name ORDER BY c.customer_name; 
+
+#TASK 3: Creating a new order 
+#This customer wants 10 of each of the 5 least expensive products. 
+
+#Trial 1:
+ SELECT customer_id FROM customers WHERE customer_name = 'Perez and Sons';
+ SELECT employee_id FROM employees WHERE first_name = 'Miranda' AND last_name='Harris';
+ SELECT product_id FROM products ORDER BY price ASC LIMIT 5; 
+ BEGIN; 
+ INSERT INTO orders (customer_id, employee_id, date) VALUES (16, 7, '2026-08-02') RETURNING order_id;
+ INSERT INTO line_items (order_id, product_id, quantity) VALUES (250, 23, 10), (250, 18, 10),(250, 43, 10),(250, 9, 10),(250, 44, 10) ;
+ COMMIT;
+ SELECT * FROM line_items WHERE order_id = 250; 
+
+#Trial 2 after AI Reviewer Recommendations - that didn't work:
+#SELECT customer_id FROM customers WHERE customer_name = 'Perez and Sons';
+#SELECT employee_id FROM employees WHERE first_name = 'Miranda' AND last_name = 'Harris'; 
+#SELECT product_id FROM products ORDER BY price LIMIT 5; 
+#BEGIN;
+#INSERT INTO orders (customer_id, employee_id, date) VALUES (16, 7, '2026-08-02') RETURNING order_id; 
+#INSERT INTO line_items (order_id, product_id, quantity) VALUES (?, 23, 10), (?, 18, 10), (?, 43, 10), (?, 9, 10), (?, 44, 10);
+#COMMIT;
+#SELECT * FROM line_items WHERE order_id = ?; 
+
+
+
+
+
+
+
+
+
+#TASK 4:use HAVING to find employees with > 5 orders
+
+SELECT e.first_name,e.last_name,COUNT(o.order_id) AS order_count FROM employees AS e JOIN orders AS o ON e.employee_id=o.employee_id  GROUP BY e.employee_id, e.first_name, e.last_name HAVING COUNT(o.order_id) > 5 ORDER BY e.last_name;
+

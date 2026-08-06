@@ -2,6 +2,8 @@ const { userSchema } = require("../validation/userSchema");
 const crypto = require("crypto");
 const util = require("util");
 const scrypt = util.promisify(crypto.scrypt);
+const pool = require("../db/pg-pool");
+
 
 async function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -16,59 +18,67 @@ async function comparePassword(inputPassword, storedHash) {
   return crypto.timingSafeEqual(keyBuffer, derivedKey);
 }
 //REGISTER
-exports.register=async(req,res)=>{
+exports.register=async(req,res,next)=>{
     if (!req.body) req.body = {};
     const { error, value } = userSchema.validate(req.body, { abortEarly: false });
     if (error) {
   return res.status(400).json({
-    message: error.message,
+    message: "Validation failed",
+    details: error.details,
   });
 }   
-const hashedPassword = await hashPassword(value.password);
-
-const newUser = { email: value.email, name: value.name, hashedPassword };
-   global.users.push(newUser);
-   global.user_id = newUser;
+let user = null;
+value.hashed_password = await hashPassword(value.password);
+try {
+        user = await pool.query(
+            `INSERT INTO users (email, name, hashed_password) 
+             VALUES ($1, $2, $3) RETURNING id, email, name`,
+            [value.email, value.name, value.hashed_password]
+        );
+    } catch (e) {
+        if (e.code === "23505") {
+            return res.status(400).json({
+                //error: "This email is already registered."
+                message:"This email is already registered."
+            });
+        }
+        return next(e); 
+    }
+global.user_id = user.rows[0].id;
     return res.status(201).json({
-   name: newUser.name,
-   email: newUser.email
+   name: user.rows[0].name,
+   email: user.rows[0].email
 });
 };
 
 //LOGON 
-exports.logon=async(req, res)=>{
+exports.logon=async(req, res,next)=>{
     const email = req.body.email;
     const password = req.body.password;
+    const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
 
-    const user = global.users.find((user) => {
-        return user.email === email; 
-    });
-
-    if (!user) {
+    if (result.rows.length === 0) {
         return res.status(401).json({
             error: "Invalid email or password"
         });
     }
-
-    const goodCredentials = user && await comparePassword(password, user.hashedPassword);
+    
+    const goodCredentials = await comparePassword(password, result.rows[0].hashed_password);
 
     if (!goodCredentials) {
         return res.status(401).json({
             error: "Invalid email or password"
         });
     }
-     global.user_id = user;
+     global.user_id = result.rows[0].id;
         return res.status(200).json({
-            name: user.name,
-            email: user.email
+            name: result.rows[0].name,
+            email: result.rows[0].email
         });    
 }
 
 exports.logoff=(req,res)=>{
 global.user_id=null;
-//Before fixing with AI Assignment Reviewer
-//return res.sendStatus(200);
-//After fixing with AI Reviewer:
 return res.status(200).json({ 
         message: "Logged off successfully" 
     });
