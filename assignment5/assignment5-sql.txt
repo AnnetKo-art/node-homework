@@ -30,7 +30,7 @@ SELECT c.customer_name, AVG(t.total_price) AS average_order_price FROM customers
  COMMIT;
  SELECT * FROM line_items WHERE order_id = 250; 
 
-#Trial 2 after AI Reviewer Recommendations - that didn't work:
+#Trial 2 after AI Reviewer Recommendations - that didn't work with the tests:
 #SELECT customer_id FROM customers WHERE customer_name = 'Perez and Sons';
 #SELECT employee_id FROM employees WHERE first_name = 'Miranda' AND last_name = 'Harris'; 
 #SELECT product_id FROM products ORDER BY price LIMIT 5; 
