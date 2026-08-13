@@ -53,7 +53,11 @@ global.user_id = user.id;
 
 //LOGON 
 exports.logon=async(req, res,next)=>{
-    //const email = req.body.email;
+    if (!req.body.email || !req.body.password) {
+        return res.status(400).json({ 
+            message: "Email and password are required" 
+        });
+    }
     const email=req.body.email.toLowerCase();
     const password = req.body.password;
     const user = await prisma.user.findUnique({ 
