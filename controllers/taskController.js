@@ -16,7 +16,7 @@ exports.create = async (req, res, next) => {
         title: value.title,
         isCompleted: value.isCompleted,
         priority: value.priority,
-        userId: global.user_id,
+        userId: req.user.id,
       },
       select: { id: true, title: true, isCompleted: true, priority: true },
     });
@@ -62,7 +62,7 @@ exports.index = async (req, res, next) => {
     const skip = (page - 1) * limit;
    
     const whereClause = {
-      userId: global.user_id,
+      userId: req.user.id,
     };
     // Filtering - searching by title with a find query parameter
 //if (req.query.find) {
@@ -156,7 +156,7 @@ exports.show = async (req, res, next) => {
       where: {
         id_userId: {
           id: taskId,
-          userId: global.user_id,
+          userId: req.user.id,
         },
       },
 
@@ -219,7 +219,7 @@ exports.update = async (req, res, next) => {
       data: value,
       where: {
         id: taskId,
-        userId: global.user_id,
+        userId: req.user.id,
       },
       select: {
         title: true,
@@ -253,7 +253,7 @@ exports.deleteTask = async (req, res, next) => {
     deletedTask = await prisma.task.delete({
       where: {
         id: taskId,
-        userId: global.user_id,
+        userId: req.user.id,
       },
       select: {
         id: true,
@@ -298,7 +298,7 @@ exports.bulkCreate = async (req, res, next) => {
       title: value.title,
       isCompleted: value.isCompleted || false,
       priority: value.priority || 'medium',
-      userId: global.user_id
+      userId: req.user.id
     });
   }
 
