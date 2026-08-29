@@ -11,7 +11,6 @@ const {
 
 router.post("/", create);//create
 router.get("/", index);//index
-//router.post("/bulk", bulkCreate);//bulkCreate
 router.get("/:id",show);//show
 router.post("/bulk", bulkCreate);//bulkCreate
 router.patch("/:id",update);//update
