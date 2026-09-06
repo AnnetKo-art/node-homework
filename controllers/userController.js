@@ -134,9 +134,14 @@ exports.logon=async(req, res,next)=>{
     
     const csrfToken = setJwtCookie(req,res,user);
         return res.status(200).json({
+            //name: user.name,
+            //email: user.email,
+           // csrfToken: csrfToken
+           user: { //This is wrapped  to have the tests Passed in Week9
             name: user.name,
-            email: user.email,
-            csrfToken: csrfToken
+            email: user.email
+        },
+        csrfToken: csrfToken
         });    
 }
 
