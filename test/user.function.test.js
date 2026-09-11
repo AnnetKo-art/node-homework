@@ -29,7 +29,10 @@ describe("register a user", () => {
     };
 
     // We send real POST-request to the route /user/register
-    saveRes = await agent.post("/api/users/register").send(newUser);
+    saveRes = await agent
+    .post("/api/users/register")
+    .set("X-Recaptcha-Test", process.env.RECAPTCHA_BYPASS) //Stretching Goal - Send the bypass header so reCAPTCHA validation allows automated test registration
+    .send(newUser);
     expect(saveRes.status).toBe(201);
   });
 
