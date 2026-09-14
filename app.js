@@ -10,6 +10,72 @@ const cookieParser = require("cookie-parser");
 const helmet = require("helmet");
 const { xss } = require("express-xss-sanitizer");
 const rateLimiter = require("express-rate-limit");
+const swaggerUi = require("swagger-ui-express");
+const swaggerJsdoc = require("swagger-jsdoc");
+
+/*const swaggerOptions = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Node Homework API",
+      version: "1.0.0",
+      description: "API Documentation for Node.js Backend Application",
+    },
+    servers: [
+      {
+        url: "http://localhost:3000",
+        description: "Local Development Server",
+      },
+      {
+        url: "https://node-homework-backend-hanna-kovalenko.onrender.com",
+        description: "Production Render Server",
+      },
+    ],
+  },
+  apis: ["./routes/*.js"],
+};*/
+const swaggerOptions = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Node Homework API",
+      version: "1.0.0",
+      description: "API Documentation for Node.js Backend Application",
+    },
+    servers: [
+      {
+        url: "http://localhost:3000",
+        description: "Local Development Server",
+      },
+      {
+        url: "https://node-homework-backend-hanna-kovalenko.onrender.com",
+        description: "Production Render Server",
+      },
+    ],
+
+    components: {
+      securitySchemes: {
+        cookieAuth: {
+          type: "apiKey",
+          in: "cookie",
+          name: "jwt",
+          description: "JWT authentication stored in an HTTP-only cookie. This field cannot be set manually here — the cookie is automatically attached by your browser after a successful POST /api/users/logon, since HTTP-only cookies are inaccessible to JavaScript (including Swagger UI) for security reasons.",
+        },
+        csrfAuth: {
+          type: "apiKey",
+          in: "header",
+          name: "X-CSRF-TOKEN",
+          description:
+            "CSRF token. Log in via POST /api/users/logon, copy the csrfToken from the response body, then paste it here.",
+        },
+      },
+    },
+  },
+
+  apis: ["./routes/*.js"],
+};
+
+const swaggerDocs = swaggerJsdoc(swaggerOptions);
 
 const app = express();
 app.set("trust proxy", 1);
@@ -23,6 +89,22 @@ app.use(helmet());
 app.use(express.json({limit: "1mb"}));
 app.use(cookieParser());
 app.use(xss());
+//app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerDocs, {
+    swaggerOptions: {
+      requestInterceptor: (req) => {
+        req.credentials = "include"; // Include cookies with every request
+        return req;
+      },
+    },
+  })
+);
+
+
+
 app.use("/api/users", userRouter);
 app.use("/api/tasks", authMiddleware, taskRouter);
 app.use("/api/analytics", authMiddleware, analyticsRoutes);
