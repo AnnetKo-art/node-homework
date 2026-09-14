@@ -1,1 +1,232 @@
 https://node-homework-backend-hanna-kovalenko.onrender.com
+
+==================================================
+Assignment 11 Extra Feature: Swagger API Documentation
+==================================================
+==================================================
+Assignment 11 Extra Feature: Swagger API Documentation
+==================================================
+
+What Swagger Is
+----------------
+Swagger (also known as the OpenAPI Specification) is a standard way of
+describing a REST API — every endpoint, what data it expects, what it
+returns, and how to authenticate with it — in a machine-readable format.
+A tool (swagger-jsdoc, in this project) reads that description and
+generates a live, interactive web page (swagger-ui-express) where
+anyone can see every available route, expand it to view its parameters
+and expected request body, and send real requests to the API directly
+from the browser to see real responses. It effectively turns the API
+into a self-documenting, testable product, rather than something a
+developer has to explain manually or a teammate has to reverse-engineer
+by reading route files.
+
+Swagger vs. Postman
+---------------------
+Postman is a general-purpose tool for manually building and sending
+HTTP requests to any API, with collections a developer builds and
+maintains by hand. Swagger, by contrast, is documentation that is
+generated directly from comments in the project's own source code, so
+it is automatically kept close to the real behavior of the API and
+does not require maintaining a separate collection file. Swagger is
+meant to be shared with anyone — reviewers, teammates, or other
+developers — as a public reference and live testing interface for the
+API, whereas Postman collections are typically a personal or team
+development tool. In short: Postman is how a developer tests an API
+while building it; Swagger is how that same API gets explained and
+made testable for everyone else afterward.
+
+Overview
+--------
+Implemented full interactive Swagger/OpenAPI 3.0 documentation for the
+entire backend API using swagger-jsdoc and swagger-ui-express. The
+documentation is generated directly from JSDoc-style comments placed
+above each route definition, so it stays close to the actual code and
+is easy to keep in sync as routes change.
+
+Documentation URL:
+  - Local:      http://localhost:3000/api-docs
+  - Production: https://node-homework-backend-hanna-kovalenko.onrender.com/api-docs
+
+Two servers are registered in the Swagger config (local and Render), so
+the same documentation describes both environments. Testing was done
+against the local server, since the JWT cookie used for authentication
+is scoped to the origin serving the Swagger UI page itself.
+
+Authentication Documentation
+-----------------------------
+The API uses two layers of protection on state-changing requests:
+an HTTP-only JWT cookie for identifying the user, and a CSRF token
+required in a custom header. Both are now fully modeled as OpenAPI
+security schemes so they can be exercised directly from the Swagger
+"Authorize" dialog rather than only from Postman:
+
+  * cookieAuth (apiKey, in: cookie, name: jwt)
+      Represents the JWT session cookie. Cannot be set manually through
+      Swagger's UI, since the cookie is httpOnly and therefore invisible
+      to any JavaScript, including Swagger UI itself. The cookie is
+      obtained automatically by the browser after a successful
+      POST /api/users/logon or POST /api/users/register, and is then
+      sent automatically on every subsequent request to the same origin.
+
+  * csrfAuth (apiKey, in: header, name: X-CSRF-TOKEN)
+      Represents the CSRF token required on every POST, PATCH, PUT, or
+      DELETE request. Unlike the cookie, this value has to be copied
+      manually: log in via POST /api/users/logon or
+      POST /api/users/register, copy the "csrfToken" field from the
+      JSON response body, then paste it into the csrfAuth field in the
+      Authorize dialog. From that point on, Swagger UI attaches it as
+      an X-CSRF-TOKEN header on every mutating request automatically.
+
+Every route below that modifies data requires BOTH schemes together
+(cookieAuth AND csrfAuth), matching the actual middleware logic in
+middleware/jwtMiddleware.js, which checks for a valid JWT cookie and,
+for POST/PATCH/PUT/DELETE methods, an exact match on X-CSRF-TOKEN.
+Read-only (GET) routes only require cookieAuth.
+
+Documented Routes
+------------------
+
+1) POST /api/users/register
+   Auth required: none
+   Optional header: X-Recaptcha-Test (string) — a test-only bypass for
+     reCAPTCHA verification. Its value must exactly match the
+     RECAPTCHA_BYPASS environment variable; without a matching header
+     (or a real Google reCAPTCHA token in the body), the request is
+     rejected with 400.
+   Request body (application/json):
+     { "email": string (required),
+       "name": string (required),
+       "password": string (required) }
+   Validated with the same Joi schema (userSchema) used by the app, so
+   Swagger's example matches real validation rules (min/max lengths,
+   password strength, etc.).
+   Response: 201 with { user: { name, email }, csrfToken } and sets the
+   jwt cookie. Also seeds three default "welcome" tasks for the new
+   user. 400 on validation failure or duplicate email.
+
+2) POST /api/users/logon
+   Auth required: none
+   Request body: { "email": string (required), "password": string (required) }
+   Response: 200 with { name, email, user: { name, email }, csrfToken },
+   and sets the jwt cookie. 401 on invalid credentials.
+
+3) POST /api/users/logoff
+   Auth required: cookieAuth + csrfAuth
+   No request body.
+   Response: 200 on success, clears the session; 401 if not authenticated.
+   NOTE: originally documented with cookieAuth only. Testing through
+   Swagger surfaced a 401 even with a valid cookie present, because the
+   route's jwtMiddleware also enforces the CSRF check on POST requests.
+   Fixed by adding csrfAuth to the route's security requirement so the
+   documentation matches the middleware's actual behavior.
+
+4) GET /api/tasks
+   Auth required: cookieAuth
+   Query parameters:
+     page (integer, default 1, min 1) — pagination page number
+     limit (integer, default 10, min 1, max 100) — results per page
+     find (string) — search tasks by title
+     isCompleted (boolean) — filter by completion status
+     priority (string, enum: low/medium/high) — filter by priority
+     min_date (string, date) — only tasks created on/after this date
+     max_date (string, date) — only tasks created on/before this date
+     sortBy (string, enum: title/priority/createdAt/id/isCompleted,
+       default createdAt)
+     sortDirection (string, enum: asc/desc, default desc)
+   Response: 200 with { tasks: [...], pagination: {...} }.
+   NOTE: originally only page, limit, and find were documented, even
+   though the controller supports six additional filter/sort options.
+   Documentation was rewritten to cover all nine real query parameters.
+
+5) POST /api/tasks
+   Auth required: cookieAuth + csrfAuth
+   Request body: { "title": string (required, 3-30 chars),
+     "isCompleted": boolean (default false),
+     "priority": string (enum low/medium/high, default medium) }
+   Response: 201 on success, 400 on validation error.
+
+6) POST /api/tasks/bulk
+   Auth required: cookieAuth + csrfAuth
+   Request body: { "tasks": [ { "title": string (required, 3-30 chars),
+     "isCompleted": boolean, "priority": string (low/medium/high) }, ... ] }
+   Response: 201 with { message, tasksCreated, totalRequested }.
+   NOTE: the documentation originally described the body as a bare
+   array of task objects. The actual controller destructures
+   `{ tasks }` from req.body, so a bare array would have been rejected.
+   Documentation was corrected to the real wrapped-object shape, and
+   verified end-to-end with a live 201 response.
+
+7) GET /api/tasks/:id
+   Auth required: cookieAuth
+   Path parameter: id (integer, required)
+   Response: 200 with the task, 404 if not found.
+
+8) PATCH /api/tasks/:id
+   Auth required: cookieAuth + csrfAuth
+   Path parameter: id (integer, required)
+   Request body (all fields optional): { "title": string,
+     "isCompleted": boolean, "priority": string (low/medium/high) }
+   Response: 200 with the updated task. Verified live, including the
+   30-character title limit being enforced by the same Joi schema
+   as task creation.
+
+9) DELETE /api/tasks/:id
+   Auth required: cookieAuth + csrfAuth
+   Path parameter: id (integer, required)
+   Response: 200 on success. Verified live.
+
+10) GET /api/analytics/users
+    Auth required: cookieAuth
+    Query parameters: page (integer, default 1), limit (integer, default 10)
+    Response: 200 with a paginated list of users, each including a task
+    count and up to five of their incomplete tasks.
+    NOTE: originally had no documented query parameters at all, despite
+    the controller supporting pagination.
+
+11) GET /api/analytics/users/:id
+    Auth required: cookieAuth
+    Path parameter: id (integer, required)
+    Response: 200 with task-completion stats, the 10 most recent tasks,
+    and a weekly task-creation breakdown for that user. 400 if the id
+    is not numeric, 404 if the user does not exist.
+
+12) GET /api/analytics/tasks/search
+    Auth required: cookieAuth
+    Query parameters:
+      q (string, required, min 2 characters) — search term matched
+        (case-insensitively) against either the task title OR the
+        owning user's name
+      limit (integer, default 20) — max results returned
+    Response: 200 with { results: [...], query, count }. 400 if q is
+    missing or shorter than 2 characters.
+    NOTE: originally had no documented query parameters, even though a
+    search endpoint without a documented search term is unusable.
+    Also worth noting: because the search matches on user name as well
+    as task title, searching a fragment of a user's name (e.g. "sw" for
+    "Swagger User") returns all of that user's tasks, not just tasks
+    whose titles contain the search term. This is intentional per the
+    controller's own SQL, but can look surprising at first glance and
+    is documented in the parameter description accordingly.
+
+Observed Design Note (not fixed, flagged for awareness)
+---------------------------------------------------------
+All three analytics endpoints require only a valid logged-in session
+(cookieAuth) with no distinction between regular users and
+administrators. Any authenticated user can currently view analytics
+data — including statistics — for every user in the system, not just
+their own account. In a production system this would typically require
+a separate admin role and a check such as `req.user.role === "admin"`
+before granting access. This is noted here as an observation about the
+current authorization model rather than something addressed in this
+assignment.
+
+Testing Method
+---------------
+Every documented route (except register's real-reCAPTCHA path) was
+executed directly from the Swagger UI's "Try it out" feature against
+the local server, using the Authorize dialog to supply the JWT cookie
+(automatically, via logon/register) and the CSRF token (manually,
+copied from the logon/register response body). Successful 2xx
+responses and expected 4xx validation/auth failures were both verified
+for each route.
